@@ -1,19 +1,28 @@
 package sw
 
+import "fmt"
+
 import "github.com/onesuper/hobbit"
 
 type Mermans struct {
 	hobbit.Race
 }
 
-func NewMermans() hobbit.RaceI {
-	return &Mermans{*hobbit.NewRace("Mermans", 'M', 10)}
+// If the region is near a Sea, Mermans can conquer it with 1 less soldier.
+func (m *Mermans) GetDefenseOver(atlas *hobbit.Atlas, row, col int) int {
+
+	fmt.Println("haha")
+	nearSea := false
+	f := func(region hobbit.RegionI) {
+		if region.GetTerrain().GetKind() == Sea {
+			nearSea = true
+		}
+	}
+	atlas.ApplyToNeighbors(row, col, f)
+	region, _ := atlas.GetRegion(row, col)
+	if nearSea {
+		return region.GetDefense() - 1
+	} else {
+		return region.GetDefense()
+	}
 }
-
-// func (m *Mermans) GetDefenseOver(region RegionI) error {
-
-//     if (region.GetTerrain().GetKind() == Sea)
-
-//         return region.GetDefense() + 2
-
-// }

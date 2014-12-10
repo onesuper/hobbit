@@ -1,4 +1,4 @@
-package hexboard
+package hobbit
 
 // General printer to print hex.
 // Different hex (though with the same Q, R) may have different X, Y

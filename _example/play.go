@@ -46,15 +46,15 @@ func main() {
 	atlas.SetRegion(4, 2, hobbit.NewRegion(sea))
 
 	// Create races
-	humans := sw.NewHumans()
-	orcs := sw.NewOrcs()
+	humans := &sw.Humans{hobbit.Race{"Humans", 'H', 10}}
+	orcs := &sw.Orcs{hobbit.Race{"Orcs", 'O', 10}}
+	mermans := &sw.Mermans{hobbit.Race{"Mermans", 'M', 10}}
 
 	// Create skills
 	foresting := &sw.Foresting{}
 
 	races := []hobbit.RaceI{}
-	races = append(races, humans)
-	races = append(races, orcs)
+	races = append(races, mermans, humans, orcs)
 
 	skills := []hobbit.RaceI{}
 	skills = append(skills, foresting)
@@ -77,21 +77,19 @@ func main() {
 					if command == "f" {
 						break
 					}
-					if row, col, err := hobbit.ParseCoord(command); err == nil {
-						if region, err1 := atlas.GetRegion(row, col); err1 == nil {
-							if foul := race.RecallFromOccupied(region); foul == nil {
-								fmt.Printf("%s recall the soldier from region %d-%d.\n", race.GetName(), row, col)
-								Screen(atlas, races)
-							} else {
-								cmd.Promptln(foul.Error())
-							}
-						} else {
-							cmd.Promptln(err1.Error())
-						}
-					} else {
+					row, col, err := hobbit.ParseCoord(command)
+					if err != nil {
 						cmd.Promptln(err.Error())
+						continue
 					}
-				}
+					foul := race.RecallFrom(atlas, row, col)
+					if foul != nil {
+						cmd.Promptln(foul.Error())
+						continue
+					}
+					fmt.Printf("%s recall the soldier from region %d-%d.\n", race.GetName(), row, col)
+					Screen(atlas, races)
+				} // for
 			}
 			/////////////////////////////////////////////////////////// Conquering Stage
 			cmd.Banner(fmt.Sprintf(" Round %d | %s | %s ", round, race.GetName(), "Conquering Stage"), '.')
@@ -103,28 +101,41 @@ func main() {
 				if command == "f" {
 					break
 				}
-				if row, col, err := hobbit.ParseCoord(command); err == nil {
-					if region, err1 := atlas.GetRegion(row, col); err1 == nil {
-						if !race.CanReach(atlas, row, col) {
-							cmd.Promptln("can not reach this region!")
-							continue
-						}
-						if foul := race.Conquer(region); foul == nil {
-							fmt.Printf("%s conquers region %d-%d.\n", race.GetName(), row, col)
-							Screen(atlas, races)
-						} else {
-							cmd.Promptln(foul.Error())
-						}
-						if race.GetSoldiers() == 0 {
-							break
-						}
-					} else {
-						cmd.Promptln(err1.Error())
-					}
-				} else {
+				row, col, err := hobbit.ParseCoord(command)
+				if err != nil {
 					cmd.Promptln(err.Error())
+					continue
 				}
-			}
+				// Check the reachability before conquering.
+				if _, err := race.CanReach(atlas, row, col); err != nil {
+					cmd.Promptln(err.Error())
+					continue
+				}
+				// Check whether the race has enough idle soldiers to conquer
+				// the region.
+				defense := race.GetDefenseOver(atlas, row, col)
+				if race.GetSoldiers() < defense {
+					cmd.Promptln("not enough soldiers!")
+					continue
+				}
+				// Defeat the troop on the region.
+				region, _ := atlas.GetRegion(row, col)
+				if troop := region.GetTroop(); troop != nil {
+					if troop.Race == race {
+						cmd.Promptln("can not attack own region!")
+						continue
+					} else if troop.Race != nil {
+						troop.Race.Defeat(troop.Soldiers)
+					}
+				}
+				// The new race resides soliders on the region
+				race.Reside(atlas, row, col, defense)
+				fmt.Printf("%s conquers region %d-%d.\n", race.GetName(), row, col)
+				Screen(atlas, races)
+				if race.GetSoldiers() == 0 {
+					break // Running out of soldiers
+				}
+			} // for
 			/////////////////////////////////////////////////////////// Redeploying Stage
 			cmd.Banner(fmt.Sprintf(" Round %d | %s | %s ", round, race.GetName(), "Redeploying Stage"), '.')
 			cmd.Promptln("For redeploying your troops between regions.\n" +
@@ -136,51 +147,42 @@ func main() {
 				if command == "f" {
 					break
 				}
-				fields := strings.Fields(command)
-				if len(fields) == 1 {
-					if row, col, err := hobbit.ParseCoord(command); err == nil {
-						if region, err1 := atlas.GetRegion(row, col); err1 == nil {
-							if foul := race.RedeployTo(region); foul == nil {
-								fmt.Printf("%s redeploys a idle soldier to %d-%d\n",
-									race.GetName(), row, col)
-								Screen(atlas, races)
-							} else {
-								cmd.Promptln(foul.Error())
-							}
-						} else {
-							cmd.Promptln(err1.Error())
-						}
-					} else {
+				if fields := strings.Fields(command); len(fields) == 1 {
+					row, col, err := hobbit.ParseCoord(command)
+					if err != nil {
 						cmd.Promptln(err.Error())
+						continue
 					}
+					foul := race.RedeployTo(atlas, row, col)
+					if foul != nil {
+						cmd.Promptln(foul.Error())
+						continue
+					}
+					fmt.Printf("%s redeploys a idle soldier to %d-%d\n", race.GetName(), row, col)
+					Screen(atlas, races)
 				} else if len(fields) == 2 {
-					if rSrc, qSrc, err := hobbit.ParseCoord(fields[0]); err == nil {
-						if rDst, qDst, err1 := hobbit.ParseCoord(fields[1]); err1 == nil {
-							if src, err2 := atlas.GetRegion(rSrc, qSrc); err2 == nil {
-								if dst, err3 := atlas.GetRegion(rDst, qDst); err3 == nil {
-									if foul := race.RedeployBetween(src, dst); foul == nil {
-										fmt.Printf("%s redeploys a soldier from %d-%d to %d-%d\n",
-											race.GetName(), rSrc, qSrc, rDst, qDst)
-										Screen(atlas, races)
-									} else {
-										cmd.Promptln(foul.Error())
-									}
-								} else {
-									cmd.Promptln("2nd field: " + err3.Error())
-								}
-							} else {
-								cmd.Promptln("1st field: " + err2.Error())
-							}
-						} else {
-							cmd.Promptln("2nd field: " + err1.Error())
-						}
-					} else {
-						cmd.Promptln("1st field: " + err.Error())
+					rSrc, qSrc, err1 := hobbit.ParseCoord(fields[0])
+					if err1 != nil {
+						cmd.Promptln("1st field: " + err1.Error())
+						continue
 					}
+					rDst, qDst, err2 := hobbit.ParseCoord(fields[1])
+					if err2 != nil {
+						cmd.Promptln("2nd field: " + err2.Error())
+						continue
+					}
+					foul := race.RedeployBetween(atlas, rSrc, qSrc, rDst, qDst)
+					if foul != nil {
+						cmd.Promptln(foul.Error())
+						continue
+					}
+					fmt.Printf("%s redeploys a soldier from %d-%d to %d-%d\n",
+						race.GetName(), rSrc, qSrc, rDst, qDst)
+					Screen(atlas, races)
 				} else {
 					cmd.Promptln("the command must have 2 fields")
 				}
-			}
+			} // for
 			/////////////////////////////////////////////////////////// Scoring Stage
 			coins := race.Score(atlas)
 			fmt.Printf("%s make %d victory coins\n", race.GetName(), coins)

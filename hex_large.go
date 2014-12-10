@@ -1,4 +1,4 @@
-package hexboard
+package hobbit
 
 import "strings"
 
@@ -12,19 +12,21 @@ const largeHexTemplate = "   _ _ _ _   \n" +
 	"  \\_______/  \n"
 
 type LargeHex struct {
-	Hex
+	width  int
+	height int
+	side   int
 }
 
 func NewLargeHex() *LargeHex {
-	return &LargeHex{Hex{13, 7, 3}}
+	return &LargeHex{13, 7, 3}
 }
 
 // Cast the hex appearance according to the template
 func (h *LargeHex) getString(header, line1, line2 string, filler byte) string {
 	template := largeHexTemplate
-	header = fixToLength(header, 5)
-	line1 = fixToLength(line1, 7)
-	line2 = fixToLength(line2, 7)
+	header = FixToLength(header, 5, ' ')
+	line1 = FixToLength(line1, 7, ' ')
+	line2 = FixToLength(line2, 7, ' ')
 	template = strings.Replace(template, "HHHHH", header, 1)
 	template = strings.Replace(template, "XXXXXXX", line1, 1)
 	template = strings.Replace(template, "YYYYYYY", line2, 1)

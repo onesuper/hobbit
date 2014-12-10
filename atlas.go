@@ -3,14 +3,13 @@ package hobbit
 import (
 	"errors"
 	"fmt"
-	"github.com/onesuper/hobbit/hexboard"
 )
 
-// The [regions] is stored in 2D array. But the topology do not have to be a matrix.
-// The adjacency is checked by the method defined in [HexBoard], e.g. `AreNeighbors()`.
-// Our game board is based on the [HexBoard].
+// Container for the Region.
+// The regions are stored in 2D array, but the topology do not have to be a matrix.
+// The adjacency is defined in `HexBoard`.
 type Atlas struct {
-	board   *hexboard.HexBoard
+	board   *HexBoard
 	regions [][]RegionI
 	rows    int
 	cols    int
@@ -24,7 +23,7 @@ func NewAtlas(rows int, cols int) (*Atlas, error) {
 	a.rows = rows
 	a.cols = cols
 
-	board, err := hexboard.NewHexBoard(rows, cols, hexboard.NewLargeHex())
+	board, err := NewHexBoard(rows, cols, NewLargeHex())
 	if err != nil {
 		return nil, err
 	}
@@ -67,20 +66,6 @@ func (a *Atlas) IsAtBorder(row, col int) bool {
 		return false
 	}
 	return true
-}
-
-func (a *Atlas) IsNearbyOccupiedBy(row, col int, race RaceI) bool {
-
-	isNearby := false
-	f := func(region RegionI) {
-		if troop := region.GetTroop(); troop != nil {
-			if race == troop.race {
-				isNearby = true
-			}
-		}
-	}
-	a.ApplyToNeighbors(row, col, f)
-	return isNearby
 }
 
 // Apply function `f` to all neighbors of a region specified by `row` and `col`.

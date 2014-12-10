@@ -7,10 +7,6 @@ type Orcs struct {
 	// conquers int
 }
 
-func NewOrcs() hobbit.RaceI {
-	return &Orcs{*hobbit.NewRace("Orcs", 'O', 10)}
-}
-
 // func (o *Orcs) Conquer(atlas *Atlas, row, col int) Foul {
 
 // 	conquers += 1

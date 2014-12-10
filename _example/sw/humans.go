@@ -6,10 +6,6 @@ type Humans struct {
 	hobbit.Race
 }
 
-func NewHumans() hobbit.RaceI {
-	return &Humans{*hobbit.NewRace("Humans", 'H', 10)}
-}
-
 // Humans can make 1 extra money on the farm
 func (h *Humans) Score(atlas *hobbit.Atlas) int {
 	coins := 0

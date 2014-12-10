@@ -1,4 +1,4 @@
-package hexboard
+package hobbit
 
 import "errors"
 

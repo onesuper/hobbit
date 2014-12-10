@@ -1,3 +1,10 @@
+package hobbit
+
+import (
+	"errors"
+	"strings"
+)
+
 /*
 Helps to create an hexagonal grid in ASCII to represent the game board.
 The grid uses an axial coordinate system an only uses the positive axises.
@@ -18,13 +25,6 @@ Like so:
             |
             | r Axis
 */
-package hexboard
-
-import (
-	"errors"
-	"strings"
-)
-
 type HexBoard struct {
 	qSize   int        // The maximum span along the Q axis
 	rSize   int        // The maximum span along the R axis
@@ -81,19 +81,6 @@ func (b *HexBoard) Clear() {
 	b.grid.clear()
 }
 
-// Returns the adjacency of two coordinate points in the hexagonal view.
-func (b *HexBoard) AreNeighbors(q1, r1, q2, r2 int) bool {
-	if !b.hasCoord(q1, r1) || !b.hasCoord(q2, r2) {
-		return false
-	}
-	for i := range b.dirs {
-		if q1+b.dirs[i][0] == q2 && r1+b.dirs[i][1] == r2 {
-			return true
-		}
-	}
-	return false
-}
-
 // Return neighbors of (q, r).
 // If a neighbor from one direction does not exist in the coordinate system,
 // the corresponding coord is (-1, -1).
@@ -111,6 +98,21 @@ func (b *HexBoard) NeighborCoords(q int, r int) [6][2]int {
 	return coords
 }
 
+// TODO(onesuper): abandon later
+// Returns the adjacency of two coordinate points in the hexagonal view.
+func (b *HexBoard) AreNeighbors(q1, r1, q2, r2 int) bool {
+	if !b.hasCoord(q1, r1) || !b.hasCoord(q2, r2) {
+		return false
+	}
+	for i := range b.dirs {
+		if q1+b.dirs[i][0] == q2 && r1+b.dirs[i][1] == r2 {
+			return true
+		}
+	}
+	return false
+}
+
+// TODO(onesuper): abandon later
 // Return the number of neighbors of (q, r).
 func (b *HexBoard) NumOfNeighbors(q int, r int) int {
 	if !b.hasCoord(q, r) {

@@ -20,6 +20,7 @@ func NewCmd() *Cmd {
 }
 
 func (cmd *Cmd) ReadCommand() (string, error) {
+	cmd.Prompt(">")
 	text, err := cmd.in.ReadString('\n')
 	if err != nil {
 		return "", err
