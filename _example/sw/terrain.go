@@ -1,10 +1,10 @@
 package sw
 
 const (
-	Plain    = 0
-	Farmland = 1
-	Sea      = 2
-	Mountain = 3
-	Forest   = 4
-	Swamp    = 5
+	Flatland   = 0
+	Farmland   = 1
+	Sea        = 2
+	Mountain   = 3
+	Forestland = 4
+	Swampland  = 5
 )

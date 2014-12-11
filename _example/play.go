@@ -13,12 +13,12 @@ import (
 /////////////////////////////////////////////////////////// Main
 func main() {
 	// Create terrains
-	farmland := hobbit.NewTerrain(sw.Farmland, '.')
+	farmland := hobbit.NewTerrain(sw.Farmland, '+')
 	sea := hobbit.NewTerrain(sw.Sea, '~')
-	swamp := hobbit.NewTerrain(sw.Swamp, '+')
-	forest := hobbit.NewTerrain(sw.Forest, 'o')
+	swamp := hobbit.NewTerrain(sw.Swampland, '.')
+	forest := hobbit.NewTerrain(sw.Forestland, 'o')
 	mountain := hobbit.NewTerrain(sw.Mountain, '^')
-	plain := hobbit.NewTerrain(sw.Plain, ' ')
+	plain := hobbit.NewTerrain(sw.Flatland, ' ')
 
 	// Create atlas
 	atlas, _ := hobbit.NewAtlas(5, 4)
@@ -45,32 +45,37 @@ func main() {
 	atlas.SetRegion(4, 1, hobbit.NewRegion(forest))
 	atlas.SetRegion(4, 2, hobbit.NewRegion(sea))
 
-	// Create races
-	humans := &sw.Humans{hobbit.Race{"Humans", 'H', 10}}
-	orcs := &sw.Orcs{hobbit.Race{"Orcs", 'O', 10}}
-	mermans := &sw.Mermans{hobbit.Race{"Mermans", 'M', 10}}
-
-	// Create skills
-	foresting := &sw.Foresting{}
-
+	// Race list
 	races := []hobbit.RaceI{}
-	races = append(races, mermans, humans, orcs)
+	races = append(races,
+		sw.NewOrcs(),
+		sw.NewOrcs(),
+		sw.NewSkeletons(),
+		sw.NewMermans(),
+		sw.NewHumans(),
+	)
 
-	skills := []hobbit.RaceI{}
-	skills = append(skills, foresting)
+	// Skill list
+	skills := []hobbit.SkillI{}
+	skills = append(skills,
+		sw.NewFlying(),
+		sw.NewSwamp(),
+		sw.NewAlchemist(),
+		sw.NewMerchant(),
+		sw.NewForest(),
+	)
 
 	// Dealing the interaction part
 	cmd := hobbit.NewCmd()
 	fmt.Println(bannerLarge)
 	for round := 1; round <= 10; round++ {
-		for _, race := range races {
-			race.GatherSoldiers(atlas)
-			Screen(atlas, races)
+		for i, race := range races {
 			/////////////////////////////////////////////////////////// Recalling Stage
+			race.GatherSoldiers(atlas)
+			Screen(atlas, races, skills)
 			if race.OccupiedRegions(atlas) > 0 {
 				cmd.Banner(fmt.Sprintf(" Round %d | %s | %s ", round, race.GetName(), "Recalling Stage"), '.')
-				cmd.Promptln("Choose a region to recall soldier from. " +
-					"Insert a coordinate like: `1-2`.\n" +
+				cmd.Promptln("Choose a region to recall soldier from. Insert a coordinate like: `1-2`.\n" +
 					"Or insert `f` to finish this stage.")
 				for {
 					command, _ := cmd.ReadCommand()
@@ -82,19 +87,18 @@ func main() {
 						cmd.Promptln(err.Error())
 						continue
 					}
-					foul := race.RecallFrom(atlas, row, col)
-					if foul != nil {
+					if foul := race.RecallFrom(atlas, row, col, 0); foul != nil {
 						cmd.Promptln(foul.Error())
 						continue
 					}
-					fmt.Printf("%s recall the soldier from region %d-%d.\n", race.GetName(), row, col)
-					Screen(atlas, races)
+					fmt.Printf("%s recalls 1 soldier from region %d-%d.\n", race.GetName(), row, col)
+					Screen(atlas, races, skills)
 				} // for
 			}
 			/////////////////////////////////////////////////////////// Conquering Stage
+			Screen(atlas, races, skills)
 			cmd.Banner(fmt.Sprintf(" Round %d | %s | %s ", round, race.GetName(), "Conquering Stage"), '.')
-			cmd.Promptln("Choose a region to conquer. " +
-				"Insert a coordinate like: `1-2`.\n" +
+			cmd.Promptln("Choose a region to conquer. Insert a coordinate like: `1-2`.\n" +
 				"Or insert `f` to finish this stage.")
 			for {
 				command, _ := cmd.ReadCommand()
@@ -106,37 +110,34 @@ func main() {
 					cmd.Promptln(err.Error())
 					continue
 				}
-				// Check the reachability before conquering.
-				if _, err := race.CanReach(atlas, row, col); err != nil {
+				if _, err := atlas.GetRegion(row, col); err != nil {
 					cmd.Promptln(err.Error())
 					continue
 				}
-				// Check whether the race has enough idle soldiers to conquer
-				// the region.
+				if !race.CanReach(atlas, row, col) && !skills[i].CanReach(atlas, row, col) {
+					cmd.Promptln("can not reach this region!")
+					continue
+				}
+				if race.HasOccupied(atlas, row, col) {
+					cmd.Promptln("can not attack your own region!")
+					continue
+				}
 				defense := race.GetDefenseOver(atlas, row, col)
 				if race.GetSoldiers() < defense {
 					cmd.Promptln("not enough soldiers!")
 					continue
 				}
-				// Defeat the troop on the region.
-				region, _ := atlas.GetRegion(row, col)
-				if troop := region.GetTroop(); troop != nil {
-					if troop.Race == race {
-						cmd.Promptln("can not attack own region!")
-						continue
-					} else if troop.Race != nil {
-						troop.Race.Defeat(troop.Soldiers)
-					}
-				}
-				// The new race resides soliders on the region
+				race.ExpelTroopOn(atlas, row, col)
 				race.Reside(atlas, row, col, defense)
 				fmt.Printf("%s conquers region %d-%d.\n", race.GetName(), row, col)
-				Screen(atlas, races)
+				Screen(atlas, races, skills)
 				if race.GetSoldiers() == 0 {
 					break // Running out of soldiers
 				}
 			} // for
 			/////////////////////////////////////////////////////////// Redeploying Stage
+			race.AfterConquest()
+			Screen(atlas, races, skills)
 			cmd.Banner(fmt.Sprintf(" Round %d | %s | %s ", round, race.GetName(), "Redeploying Stage"), '.')
 			cmd.Promptln("For redeploying your troops between regions.\n" +
 				"Insert a coordinate pair like `3-0 2-1`.\n" +
@@ -153,13 +154,12 @@ func main() {
 						cmd.Promptln(err.Error())
 						continue
 					}
-					foul := race.RedeployTo(atlas, row, col)
-					if foul != nil {
+					if foul := race.DeployTo(atlas, row, col); foul != nil {
 						cmd.Promptln(foul.Error())
 						continue
 					}
 					fmt.Printf("%s redeploys a idle soldier to %d-%d\n", race.GetName(), row, col)
-					Screen(atlas, races)
+					Screen(atlas, races, skills)
 				} else if len(fields) == 2 {
 					rSrc, qSrc, err1 := hobbit.ParseCoord(fields[0])
 					if err1 != nil {
@@ -171,20 +171,25 @@ func main() {
 						cmd.Promptln("2nd field: " + err2.Error())
 						continue
 					}
-					foul := race.RedeployBetween(atlas, rSrc, qSrc, rDst, qDst)
-					if foul != nil {
+					// In redeploying stage, the race must leave at least 1 soldier on each region.
+					if foul := race.RecallFrom(atlas, rSrc, qSrc, 1); foul != nil {
 						cmd.Promptln(foul.Error())
 						continue
 					}
-					fmt.Printf("%s redeploys a soldier from %d-%d to %d-%d\n",
-						race.GetName(), rSrc, qSrc, rDst, qDst)
-					Screen(atlas, races)
+					if foul := race.DeployTo(atlas, rDst, qDst); foul != nil {
+						cmd.Promptln(foul.Error())
+						continue
+					}
+					fmt.Printf("%s redeploys a soldier from %d-%d to %d-%d\n", race.GetName(), rSrc, qSrc, rDst, qDst)
+					Screen(atlas, races, skills)
 				} else {
 					cmd.Promptln("the command must have 2 fields")
 				}
 			} // for
 			/////////////////////////////////////////////////////////// Scoring Stage
-			coins := race.Score(atlas)
+			coins := races[i].Score(atlas)
+			coins += skills[i].Score(atlas, race)
+
 			fmt.Printf("%s make %d victory coins\n", race.GetName(), coins)
 		}
 
@@ -202,7 +207,7 @@ const bannerLarge = `+----------------------------------------------------------
 +----------------------------------------------------------------------------+`
 
 /////////////////////////////////////////////////////////// Screen
-func Screen(atlas *hobbit.Atlas, races []hobbit.RaceI) {
+func Screen(atlas *hobbit.Atlas, races []hobbit.RaceI, skills []hobbit.SkillI) {
 
 	asciiString := bannerLarge + "\n"
 	hexString := atlas.GetString()
@@ -210,8 +215,8 @@ func Screen(atlas *hobbit.Atlas, races []hobbit.RaceI) {
 
 	// Combines the all race cards to one stack
 	raceString := ""
-	for _, r := range races {
-		raceString += raceCard(r)
+	for i, _ := range races {
+		raceString += raceCard(races[i], skills[i])
 	}
 	racelines := strings.Split(raceString, "\n")
 
@@ -235,14 +240,15 @@ func Screen(atlas *hobbit.Atlas, races []hobbit.RaceI) {
 	writer.Flush()
 }
 
-func raceCard(r hobbit.RaceI) string {
-	card := "|  XXXXXXXXXXX  |\n" +
-		"|  YYYYYYYYYYY  |\n" +
-		"+---------------+\n"
-	line1 := hobbit.FixToLength(r.GetName(), 11, ' ')
+func raceCard(r hobbit.RaceI, s hobbit.SkillI) string {
+	card :=
+		"|  XXXXXXXXXXXXXXXXXXX  |\n" +
+			"|  YYYYYYYYYYYYYYYYYYY  |\n" +
+			"+-----------------------+\n"
+	line1 := hobbit.FixToLength(s.GetName()+" "+r.GetName(), 19, ' ')
 	line2 := hobbit.SeveralSymbols(r.GetSymbol(), r.GetSoldiers())
-	line2 = hobbit.FixToLength(line2, 11, ' ')
-	card = strings.Replace(card, "XXXXXXXXXXX", line1, 1)
-	card = strings.Replace(card, "YYYYYYYYYYY", line2, 1)
+	line2 = hobbit.FixToLength(line2, 19, ' ')
+	card = strings.Replace(card, "XXXXXXXXXXXXXXXXXXX", line1, 1)
+	card = strings.Replace(card, "YYYYYYYYYYYYYYYYYYY", line2, 1)
 	return card
 }

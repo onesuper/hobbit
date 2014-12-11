@@ -3,7 +3,11 @@ package sw
 import "github.com/onesuper/hobbit"
 
 type Flying struct {
-	hobbit.Race
+	hobbit.Skill
+}
+
+func NewFlying() *Flying {
+	return &Flying{hobbit.Skill{"Flying", 10}}
 }
 
 // Can reach anywhere in the atlas.

@@ -1,28 +1,28 @@
 package hobbit
 
-// import "fmt"
+import "fmt"
 
 type RaceI interface {
 	// For game logic
+	// Occupation
 	OccupiedRegions(*Atlas) int
+	ApplyToOccupied(atlas *Atlas, f func(region RegionI))
+	HasOccupied(atlas *Atlas, row, col int) bool
+
+	// Recall/Deploy 1 soldier from/to a specified region.
+	RecallFrom(atlas *Atlas, row, col int, left int) error
+	DeployTo(atlas *Atlas, row, col int) error
 	GatherSoldiers(*Atlas)
-	Score(*Atlas) int
-
-	// Recall a soldier from a specified region.
-	RecallFrom(atlas *Atlas, row, col int) error
-
-	// Redeploy one idle soldier a specified region.
-	RedeployTo(atlas *Atlas, row, col int) error
-
-	// TODO(onesuper) redeploy between = recall from + send to
-	// Redeploy one soldier between two specified regions.
-	RedeployBetween(atlas *Atlas, qSrc, rSrc, qDst, rDst int) error
 
 	// Substeps for conquering a region
-	CanReach(atlas *Atlas, row, col int) (bool, error)
+	CanReach(atlas *Atlas, row, col int) bool
 	GetDefenseOver(atlas *Atlas, row, col int) int
+	ExpelTroopOn(atlas *Atlas, row, col int)
 	Defeat(soldiers int)
 	Reside(atlas *Atlas, row, col int, soliders int)
+	AfterConquest()
+
+	Score(*Atlas) int
 
 	// For layout
 	GetSymbol() byte
@@ -72,7 +72,17 @@ func (r *Race) OccupiedRegions(atlas *Atlas) int {
 	return num
 }
 
-/////////////////////////////////////////////////////////// Recall
+func (r *Race) HasOccupied(atlas *Atlas, row, col int) bool {
+	region, _ := atlas.GetRegion(row, col)
+	if troop := region.GetTroop(); troop != nil {
+		if troop.Race == r {
+			return true
+		}
+	}
+	return false
+}
+
+/////////////////////////////////////////////////////////// Deployment
 
 // Gathers soldiers from the occupied region, leaving 1 soldier per
 // occupied region.
@@ -85,35 +95,56 @@ func (r *Race) GatherSoldiers(atlas *Atlas) {
 }
 
 // Recalls a soldier from a occupied region, leaving the region free.
-func (r *Race) RecallFrom(atlas *Atlas, row, col int) error {
+// The region must leave at least `left` soldiers.
+func (r *Race) RecallFrom(atlas *Atlas, row, col int, left int) error {
 	region, err := atlas.GetRegion(row, col)
 	if err != nil {
 		return err
 	}
-
-	if region.GetTroop() == nil || region.GetTroop().Race != r {
-		return NewFoul("this is not your territory!")
+	if troop := region.GetTroop(); troop != nil {
+		if troop.Race == r {
+			if troop.Soldiers-1 >= left {
+				troop.Soldiers -= 1
+				r.Soldiers += 1
+				if troop.Soldiers == 0 {
+					region.SetTroop(nil)
+				}
+				return nil
+			} else {
+				return NewFoul(fmt.Sprintf("must leave at least %d soldiers!", left))
+			}
+		}
 	}
+	return NewFoul("the region is not your territory!")
+}
 
-	if region.GetTroop().Soldiers != 1 {
-		return NewFoul("can only recall from a 1-solider region")
+func (r *Race) DeployTo(atlas *Atlas, row, col int) error {
+	region, err := atlas.GetRegion(row, col)
+	if err != nil {
+		return err
 	}
-	r.Soldiers += 1
-	region.SetTroop(nil)
-	return nil
+	if troop := region.GetTroop(); troop != nil {
+		if troop.Race == r {
+			if r.Soldiers >= 1 {
+				r.Soldiers -= 1
+				troop.Soldiers += 1
+				return nil
+			} else {
+				return NewFoul("no idle soldiers!")
+			}
+		}
+	}
+	return NewFoul("the region is not your territory!")
 }
 
 /////////////////////////////////////////////////////////// Conquer
 
 // Check the reachability before conquering.
-func (r *Race) CanReach(atlas *Atlas, row, col int) (bool, error) {
-	if _, err := atlas.GetRegion(row, col); err != nil {
-		return false, err
-	}
+func (r *Race) CanReach(atlas *Atlas, row, col int) bool {
 	// If a race has occupied 0 region, a border region is reachable.
 	if r.OccupiedRegions(atlas) == 0 {
 		if !atlas.IsAtBorder(row, col) {
-			return false, NewFoul("enter from border!")
+			return false
 		}
 	} else { // The region should be adjacent to an occupied one.
 		ownRegionNearby := false
@@ -126,10 +157,10 @@ func (r *Race) CanReach(atlas *Atlas, row, col int) (bool, error) {
 		}
 		atlas.ApplyToNeighbors(row, col, f)
 		if ownRegionNearby == false {
-			return false, NewFoul("can not reach this region!")
+			return false
 		}
 	}
-	return true, nil
+	return true
 }
 
 // The defense of a region is dependent on the geology info.
@@ -137,6 +168,16 @@ func (r *Race) CanReach(atlas *Atlas, row, col int) (bool, error) {
 func (r *Race) GetDefenseOver(atlas *Atlas, row, col int) int {
 	region, _ := atlas.GetRegion(row, col)
 	return region.GetDefense()
+}
+
+// Defeat the troop on the region if any.
+func (r *Race) ExpelTroopOn(atlas *Atlas, row, col int) {
+	region, _ := atlas.GetRegion(row, col)
+	if troop := region.GetTroop(); troop != nil {
+		if troop.Race != nil {
+			troop.Race.Defeat(troop.Soldiers)
+		}
+	}
 }
 
 func (r *Race) Defeat(soldiers int) {
@@ -151,45 +192,8 @@ func (r *Race) Reside(atlas *Atlas, row, col int, soldiers int) {
 	r.Soldiers -= soldiers
 }
 
-/////////////////////////////////////////////////////////// Deploy
-
-func (r *Race) RedeployBetween(atlas *Atlas, qSrc, rSrc, qDst, rDst int) error {
-	src, err1 := atlas.GetRegion(qSrc, rSrc)
-	if err1 != nil {
-		return err1
-	}
-	dst, err2 := atlas.GetRegion(qDst, rDst)
-	if err2 != nil {
-		return err2
-	}
-	if src.GetTroop() == nil || src.GetTroop().Race != r {
-		return NewFoul("src is not your territory!")
-	}
-	if dst.GetTroop() == nil || dst.GetTroop().Race != r {
-		return NewFoul("dst is not your territory!")
-	}
-	if src.GetTroop().Soldiers == 1 {
-		return NewFoul("each region at least reserves one soldier!")
-	}
-	src.GetTroop().Soldiers -= 1
-	dst.GetTroop().Soldiers += 1
-	return nil
-}
-
-func (r *Race) RedeployTo(atlas *Atlas, row, col int) error {
-	dst, err := atlas.GetRegion(row, col)
-	if err != nil {
-		return err
-	}
-	if dst.GetTroop() == nil || dst.GetTroop().Race != r {
-		return NewFoul("dst region is not your territory!")
-	}
-	if r.Soldiers == 0 {
-		return NewFoul("no idle soldiers!")
-	}
-	r.Soldiers -= 1
-	dst.GetTroop().Soldiers += 1
-	return nil
+func (r *Race) AfterConquest() {
+	return
 }
 
 /////////////////////////////////////////////////////////// Score
