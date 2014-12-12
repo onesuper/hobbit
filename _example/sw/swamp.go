@@ -7,7 +7,7 @@ type Swamp struct {
 }
 
 func NewSwamp() *Swamp {
-	return &Swamp{hobbit.Skill{"Swamp", 10}}
+	return &Swamp{hobbit.Skill{"Swamp", 4}}
 }
 
 // Collect 1 bonus coin for each Swamp region

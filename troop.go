@@ -1,17 +1,17 @@
 package hobbit
 
 type Troop struct {
-	Race     RaceI
+	Symbol   byte
 	Soldiers int
 }
 
-func NewTroop(race RaceI, soldiers int) *Troop {
+func NewTroop(symbol byte, soldiers int) *Troop {
 	t := new(Troop)
-	t.Race = race
+	t.Symbol = symbol
 	t.Soldiers = soldiers
 	return t
 }
 
 func (t *Troop) toString() string {
-	return SeveralSymbols(t.Race.GetSymbol(), t.Soldiers)
+	return SeveralSymbols(t.Symbol, t.Soldiers)
 }

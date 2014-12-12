@@ -7,7 +7,7 @@ type Flying struct {
 }
 
 func NewFlying() *Flying {
-	return &Flying{hobbit.Skill{"Flying", 10}}
+	return &Flying{hobbit.Skill{"Flying", 5}}
 }
 
 // Can reach anywhere in the atlas.

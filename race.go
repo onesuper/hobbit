@@ -17,13 +17,13 @@ type RaceI interface {
 	// Substeps for conquering a region
 	CanReach(atlas *Atlas, row, col int) bool
 	GetDefenseOver(atlas *Atlas, row, col int) int
-	ExpelTroopOn(atlas *Atlas, row, col int)
 	Defeat(soldiers int)
 	Reside(atlas *Atlas, row, col int, soliders int)
+	AfterEachDefeat()
 	AfterConquest()
 
 	Score(*Atlas) int
-
+	AddSoldiers(int)
 	// For layout
 	GetSymbol() byte
 	GetName() string
@@ -50,12 +50,16 @@ func (r *Race) GetSoldiers() int {
 	return r.Soldiers
 }
 
+func (r *Race) AddSoldiers(soldiers int) {
+	r.Soldiers += soldiers
+}
+
 /////////////////////////////////////////////////////////// Common
 
 func (r *Race) ApplyToOccupied(atlas *Atlas, f func(region RegionI)) {
 	g := func(region RegionI) {
 		if troop := region.GetTroop(); troop != nil {
-			if r == troop.Race {
+			if r.GetSymbol() == troop.Symbol {
 				f(region)
 			}
 		}
@@ -75,7 +79,7 @@ func (r *Race) OccupiedRegions(atlas *Atlas) int {
 func (r *Race) HasOccupied(atlas *Atlas, row, col int) bool {
 	region, _ := atlas.GetRegion(row, col)
 	if troop := region.GetTroop(); troop != nil {
-		if troop.Race == r {
+		if troop.Symbol == r.GetSymbol() {
 			return true
 		}
 	}
@@ -102,7 +106,7 @@ func (r *Race) RecallFrom(atlas *Atlas, row, col int, left int) error {
 		return err
 	}
 	if troop := region.GetTroop(); troop != nil {
-		if troop.Race == r {
+		if troop.Symbol == r.GetSymbol() {
 			if troop.Soldiers-1 >= left {
 				troop.Soldiers -= 1
 				r.Soldiers += 1
@@ -124,7 +128,7 @@ func (r *Race) DeployTo(atlas *Atlas, row, col int) error {
 		return err
 	}
 	if troop := region.GetTroop(); troop != nil {
-		if troop.Race == r {
+		if troop.Symbol == r.GetSymbol() {
 			if r.Soldiers >= 1 {
 				r.Soldiers -= 1
 				troop.Soldiers += 1
@@ -150,7 +154,7 @@ func (r *Race) CanReach(atlas *Atlas, row, col int) bool {
 		ownRegionNearby := false
 		f := func(region RegionI) {
 			if troop := region.GetTroop(); troop != nil {
-				if r == troop.Race {
+				if troop.Symbol == r.GetSymbol() {
 					ownRegionNearby = true
 				}
 			}
@@ -170,16 +174,6 @@ func (r *Race) GetDefenseOver(atlas *Atlas, row, col int) int {
 	return region.GetDefense()
 }
 
-// Defeat the troop on the region if any.
-func (r *Race) ExpelTroopOn(atlas *Atlas, row, col int) {
-	region, _ := atlas.GetRegion(row, col)
-	if troop := region.GetTroop(); troop != nil {
-		if troop.Race != nil {
-			troop.Race.Defeat(troop.Soldiers)
-		}
-	}
-}
-
 func (r *Race) Defeat(soldiers int) {
 	r.Soldiers += soldiers - 1
 }
@@ -187,9 +181,13 @@ func (r *Race) Defeat(soldiers int) {
 // Reside soldiers to a unconquered region.
 func (r *Race) Reside(atlas *Atlas, row, col int, soldiers int) {
 	region, _ := atlas.GetRegion(row, col)
-	troop := NewTroop(r, soldiers)
+	troop := NewTroop(r.GetSymbol(), soldiers)
 	region.SetTroop(troop)
 	r.Soldiers -= soldiers
+}
+
+func (r *Race) AfterEachDefeat() {
+	return
 }
 
 func (r *Race) AfterConquest() {

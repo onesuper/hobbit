@@ -8,18 +8,12 @@ type Orcs struct {
 }
 
 func NewOrcs() *Orcs {
-	return &Orcs{hobbit.Race{"Orcs", 'O', 10}, 0}
+	return &Orcs{hobbit.Race{"Orcs", 'O', 5}, 0}
 }
 
 // Defeat the troop on the region.
-func (o *Orcs) ExpelTroopOn(atlas *hobbit.Atlas, row, col int) {
-	region, _ := atlas.GetRegion(row, col)
-	if troop := region.GetTroop(); troop != nil {
-		if troop.Race != nil {
-			troop.Race.Defeat(troop.Soldiers)
-			o.wars += 1
-		}
-	}
+func (o *Orcs) AfterEachDefeat() {
+	o.wars += 1
 }
 
 func (o *Orcs) Score(atlas *hobbit.Atlas) int {

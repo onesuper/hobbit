@@ -46,17 +46,17 @@ func main() {
 	atlas.SetRegion(4, 2, hobbit.NewRegion(sea))
 
 	// Race list
-	races := []hobbit.RaceI{}
+	var races []hobbit.RaceI
 	races = append(races,
-		sw.NewOrcs(),
+		sw.NewHumans(),
+		sw.NewElves(),
 		sw.NewOrcs(),
 		sw.NewSkeletons(),
 		sw.NewMermans(),
-		sw.NewHumans(),
 	)
 
 	// Skill list
-	skills := []hobbit.SkillI{}
+	var skills []hobbit.SkillI
 	skills = append(skills,
 		sw.NewFlying(),
 		sw.NewSwamp(),
@@ -65,10 +65,17 @@ func main() {
 		sw.NewForest(),
 	)
 
+	var totalCoins []int
+
+	for i, race := range races {
+		race.AddSoldiers(skills[i].GetSoldiers())
+		totalCoins = append(totalCoins, 0)
+	}
+
 	// Dealing the interaction part
 	cmd := hobbit.NewCmd()
 	fmt.Println(bannerLarge)
-	for round := 1; round <= 10; round++ {
+	for round := 1; round <= 6; round++ {
 		for i, race := range races {
 			/////////////////////////////////////////////////////////// Recalling Stage
 			race.GatherSoldiers(atlas)
@@ -105,13 +112,14 @@ func main() {
 				if command == "f" {
 					break
 				}
-				row, col, err := hobbit.ParseCoord(command)
-				if err != nil {
-					cmd.Promptln(err.Error())
+				row, col, err1 := hobbit.ParseCoord(command)
+				if err1 != nil {
+					cmd.Promptln(err1.Error())
 					continue
 				}
-				if _, err := atlas.GetRegion(row, col); err != nil {
-					cmd.Promptln(err.Error())
+				region, err2 := atlas.GetRegion(row, col)
+				if err2 != nil {
+					cmd.Promptln(err2.Error())
 					continue
 				}
 				if !race.CanReach(atlas, row, col) && !skills[i].CanReach(atlas, row, col) {
@@ -127,7 +135,16 @@ func main() {
 					cmd.Promptln("not enough soldiers!")
 					continue
 				}
-				race.ExpelTroopOn(atlas, row, col)
+				if troop := region.GetTroop(); troop != nil {
+					// Find the to defeat
+					for _, r := range races {
+						if r.GetSymbol() == troop.Symbol {
+							r.Defeat(troop.Soldiers)
+							break
+						}
+					}
+					race.AfterEachDefeat()
+				}
 				race.Reside(atlas, row, col, defense)
 				fmt.Printf("%s conquers region %d-%d.\n", race.GetName(), row, col)
 				Screen(atlas, races, skills)
@@ -189,10 +206,13 @@ func main() {
 			/////////////////////////////////////////////////////////// Scoring Stage
 			coins := races[i].Score(atlas)
 			coins += skills[i].Score(atlas, race)
-
 			fmt.Printf("%s make %d victory coins\n", race.GetName(), coins)
-		}
-
+			totalCoins[i] += coins
+		} // races
+	} // round
+	cmd.Banner(" Scoreboard ", '.')
+	for i, race := range races {
+		fmt.Printf("%s: %d\n", skills[i].GetName()+" "+race.GetName(), totalCoins[i])
 	}
 }
 

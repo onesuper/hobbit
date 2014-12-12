@@ -7,7 +7,7 @@ type Humans struct {
 }
 
 func NewHumans() *Humans {
-	return &Humans{hobbit.Race{"Humans", 'H', 10}}
+	return &Humans{hobbit.Race{"Humans", 'H', 5}}
 }
 
 // Humans can make 1 extra money on the farm

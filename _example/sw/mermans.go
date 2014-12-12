@@ -9,7 +9,7 @@ type Mermans struct {
 }
 
 func NewMermans() *Mermans {
-	return &Mermans{hobbit.Race{"Mermans", 'M', 10}}
+	return &Mermans{hobbit.Race{"Mermans", 'M', 5}}
 }
 
 // If the region is near a Sea, Mermans can conquer it with 1 less soldier.

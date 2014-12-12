@@ -7,7 +7,7 @@ type Forest struct {
 }
 
 func NewForest() *Forest {
-	return &Forest{hobbit.Skill{"Forest", 10}}
+	return &Forest{hobbit.Skill{"Forest", 4}}
 }
 
 // Collect 1 bonus coin for each Forest region
