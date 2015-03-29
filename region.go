@@ -27,10 +27,8 @@ func NewRegion(terr *Terrain) *Region {
 	return r
 }
 
-// The defense of a region is composed of two parts:
-// (1) defense of the markers,
-// (2) defense of the troop.
-// An empty region has a basic defense of 2.
+// The defense of a region comprises two parts: defense of the markers,
+// and defense of the troop. An empty region has a basic defense of 2.
 func (r *Region) GetDefense() int {
 	defense := 2
 	if r.troop != nil {
@@ -69,5 +67,5 @@ func (r *Region) getString2() string {
 }
 
 func (r *Region) getSymbol() byte {
-	return r.terrain.symbol
+	return r.terrain.Symbol
 }

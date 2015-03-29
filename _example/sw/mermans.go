@@ -18,7 +18,7 @@ func (m *Mermans) GetDefenseOver(atlas *hobbit.Atlas, row, col int) int {
 	fmt.Println("haha")
 	nearSea := false
 	f := func(region hobbit.RegionI) {
-		if region.GetTerrain().GetKind() == Sea {
+		if region.GetTerrain().Kind == Sea {
 			nearSea = true
 		}
 	}

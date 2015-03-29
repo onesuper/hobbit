@@ -3,13 +3,20 @@ package hobbit
 import (
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"strconv"
 	"strings"
 )
 
-// Prettify a couple of symbols.
-// If `num` <= 0, empty string will be return.
-func SeveralSymbols(symbol byte, num int) string {
+// Hash a string to a 32-bit int.
+func hash(s string) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return h.Sum32()
+}
+
+// Prettify a couple of symbols. If `num` <= 0, empty string will be return.
+func PrettySymbols(symbol byte, num int) string {
 	if num > 5 {
 		return fmt.Sprintf("%c x %d", symbol, num)
 	}
@@ -21,20 +28,20 @@ func SeveralSymbols(symbol byte, num int) string {
 	return s
 }
 
-// Used when casting the fixed-length string
+// Casting a fixed-length string, padded with `filler` as character.
 func FixToLength(str string, length int, filler byte) string {
 	if len(str) > length {
 		return str[0:length]
 	} else if len(str) < length {
-		return padToLength(str, length, filler)
+		return PadToLength(str, length, filler)
 	} else {
 		return str
 	}
 }
 
 // Padding " " to the left and the right of a string until its length
-// meets requirement
-func padToLength(str string, length int, filler byte) string {
+// meets requirement.
+func PadToLength(str string, length int, filler byte) string {
 	n := length - len(str)
 	for n > 0 {
 		if n%2 == 0 {
@@ -47,9 +54,9 @@ func padToLength(str string, length int, filler byte) string {
 	return str
 }
 
-// Util for passing a coordinate from a command
-func ParseCoord(command string) (int, int, error) {
-	tokens := strings.Split(command, "-")
+// Passing a coordinate like 'x-y' from a string.
+func ParseCoord(str string) (int, int, error) {
+	tokens := strings.Split(str, "-")
 	if len(tokens) != 2 {
 		return -1, -1, errors.New("wrong axis count")
 	}

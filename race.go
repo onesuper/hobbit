@@ -98,16 +98,16 @@ func (r *Race) GatherSoldiers(atlas *Atlas) {
 	r.ApplyToOccupied(atlas, f)
 }
 
-// Recalls a soldier from a occupied region, leaving the region free.
-// The region must leave at least `left` soldiers.
-func (r *Race) RecallFrom(atlas *Atlas, row, col int, left int) error {
+// Recalls a soldier from a occupied region, leaving the region as unconquered.
+// The region must leave at least `n` soldiers on the ground.
+func (r *Race) RecallFrom(atlas *Atlas, row, col int, n int) error {
 	region, err := atlas.GetRegion(row, col)
 	if err != nil {
 		return err
 	}
 	if troop := region.GetTroop(); troop != nil {
 		if troop.Symbol == r.GetSymbol() {
-			if troop.Soldiers-1 >= left {
+			if troop.Soldiers-1 >= n {
 				troop.Soldiers -= 1
 				r.Soldiers += 1
 				if troop.Soldiers == 0 {
@@ -115,7 +115,7 @@ func (r *Race) RecallFrom(atlas *Atlas, row, col int, left int) error {
 				}
 				return nil
 			} else {
-				return NewFoul(fmt.Sprintf("must leave at least %d soldiers!", left))
+				return NewFoul(fmt.Sprintf("must leave at least %d soldiers!", n))
 			}
 		}
 	}
@@ -144,13 +144,14 @@ func (r *Race) DeployTo(atlas *Atlas, row, col int) error {
 /////////////////////////////////////////////////////////// Conquer
 
 // Check the reachability before conquering.
+// If a race has occupied 0 region, a border region is reachable.
+// Otherwise, the target region should be adjacent to an occupied one.
 func (r *Race) CanReach(atlas *Atlas, row, col int) bool {
-	// If a race has occupied 0 region, a border region is reachable.
 	if r.OccupiedRegions(atlas) == 0 {
 		if !atlas.IsAtBorder(row, col) {
 			return false
 		}
-	} else { // The region should be adjacent to an occupied one.
+	} else {
 		ownRegionNearby := false
 		f := func(region RegionI) {
 			if troop := region.GetTroop(); troop != nil {

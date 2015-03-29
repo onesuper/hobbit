@@ -14,7 +14,7 @@ func NewSwamp() *Swamp {
 func (s *Swamp) Score(atlas *hobbit.Atlas, race hobbit.RaceI) int {
 	coins := 0
 	g := func(region hobbit.RegionI) {
-		if region.GetTerrain().GetKind() == Swampland {
+		if region.GetTerrain().Kind == Swampland {
 			coins += 1
 		}
 	}

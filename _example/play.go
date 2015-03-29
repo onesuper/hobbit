@@ -136,7 +136,7 @@ func main() {
 					continue
 				}
 				if troop := region.GetTroop(); troop != nil {
-					// Find the to defeat
+					// Find the race to defeat
 					for _, r := range races {
 						if r.GetSymbol() == troop.Symbol {
 							r.Defeat(troop.Soldiers)
@@ -266,7 +266,7 @@ func raceCard(r hobbit.RaceI, s hobbit.SkillI) string {
 			"|  YYYYYYYYYYYYYYYYYYY  |\n" +
 			"+-----------------------+\n"
 	line1 := hobbit.FixToLength(s.GetName()+" "+r.GetName(), 19, ' ')
-	line2 := hobbit.SeveralSymbols(r.GetSymbol(), r.GetSoldiers())
+	line2 := hobbit.PrettySymbols(r.GetSymbol(), r.GetSoldiers())
 	line2 = hobbit.FixToLength(line2, 19, ' ')
 	card = strings.Replace(card, "XXXXXXXXXXXXXXXXXXX", line1, 1)
 	card = strings.Replace(card, "YYYYYYYYYYYYYYYYYYY", line2, 1)

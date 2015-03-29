@@ -15,7 +15,7 @@ func (h *Humans) Score(atlas *hobbit.Atlas) int {
 	coins := 0
 	f := func(region hobbit.RegionI) {
 		coins += 1
-		if region.GetTerrain().GetKind() == Farmland {
+		if region.GetTerrain().Kind == Farmland {
 			coins += 1
 		}
 	}

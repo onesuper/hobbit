@@ -14,7 +14,7 @@ func NewForest() *Forest {
 func (f *Forest) Score(atlas *hobbit.Atlas, race hobbit.RaceI) int {
 	coins := 0
 	g := func(region hobbit.RegionI) {
-		if region.GetTerrain().GetKind() == Forestland {
+		if region.GetTerrain().Kind == Forestland {
 			coins += 1
 		}
 	}

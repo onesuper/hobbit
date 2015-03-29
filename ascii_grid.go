@@ -4,7 +4,8 @@ import "errors"
 
 const lineBreak = "\n"
 
-// A 2-D ASCII grid for the final layout.
+// A 2-D ASCII grid for the final layout. Used only in HexBoard and does
+// not expose to the user.
 type AsciiGrid struct {
 	width  int
 	height int
